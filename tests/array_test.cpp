@@ -1,4 +1,5 @@
 #include <iostream>
+#include <utility>
 #include "../src/array.hpp"
 
 int main(int argc, char* argv[]){    
@@ -68,6 +69,12 @@ int main(int argc, char* argv[]){
     assert(vec4[1][0] == 9);
     assert(vec4[1][1] == 16);
     std::cout<<"7 - ok"<<std::endl;
+
+    ndim::array<int> veca(2, 3), vecb(4, 5);
+    std::swap(veca, vecb);
+    assert(veca.get_size() == 20);
+    assert(vecb.get_size() == 6);
+    std::cout<<"8 - ok"<<std::endl;
 
     exit(0);
 }

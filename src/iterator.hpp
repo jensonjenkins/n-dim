@@ -11,7 +11,6 @@ public:
     using value_type = T;
     using pointer = T*;
     using reference = T&;
-    // NOTE: c++20 has std::contiguous_iterator_tag, maybe can change later
     using iterator_category = std::bidirectional_iterator_tag; 
     using difference_type = std::ptrdiff_t;
 

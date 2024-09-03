@@ -1,9 +1,9 @@
 # n-dim
 A set of header files defining a multi-dimensional array that allocates memory in one contiguous block.
 
-### To run:
+### To build:
 
-```bash
+```
 mkdir build
 cd build
 cmake ..
