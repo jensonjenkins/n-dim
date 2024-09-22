@@ -4,10 +4,14 @@
 
 namespace ndim{
 
+/**
+ * Immutable buffer after defined at compile time
+ */
 template<typename T, size_t N>
 class fixed_buffer{
 public:
     constexpr T* data() noexcept { return buf_.data(); }
+    constexpr const T* data() const noexcept { return buf_.data(); }
 
     constexpr fixed_buffer() = default;
     constexpr fixed_buffer(const std::array<T, N>& buf) noexcept : buf_(buf) {};

@@ -1,135 +1,111 @@
 #pragma once
 
-#include <vector>
-#include "iterator.hpp"
+#include <type_traits>
+#include "core.hpp"
 
 namespace ndim {
 
-template <typename T> 
-class inner_array {
+/**
+ * Dimension information that is known at compile time.
+ * @tparam D the dimension information of the next inner dimension
+ * @tparam N size of the current dimension
+ */
+template<typename D, size_t N>
+class static_dim {
 public:
-    inner_array(T* data, const std::vector<size_t>& dims, size_t offset, size_t size, size_t dim_idx) 
-        : data(data), dims(dims), offset(offset), size(size), dim_idx(dim_idx) {
-            assert(dim_idx <= dims.size() && "dim_idx should not exceed dimensions size!");
-        }
+    constexpr size_t stride() const noexcept { return N * inner_static_dim_.stride(); } // recurse?
+    constexpr size_t top_dim() const noexcept { return N; }
+    constexpr const D& inner() const noexcept { return inner_static_dim_; }
+    constexpr static bool is_dynamic = false;
+    
+    constexpr static_dim() = default;
 
-    inner_array<T> operator[](size_t index) {
-        size_t stride = size / dims[dim_idx];
-        assert(index < dims[dim_idx]);
-        size_t next_offset = index * stride;
-        return inner_array<T>(data, dims, offset + next_offset, stride, dim_idx + 1);
+    constexpr bool operator==(const static_dim& other) noexcept {
+        return other.inner() == inner_static_dim_ && N == other.top_dim();
     }
-
-    inner_array<T>& operator=(const T& value) {
-        assert(this->size == 1 && "Unable to assign value to a range of elements!");
-        data[offset] = value;
-        return *this;
-    }
-
-    operator T&() { return data[offset]; }
-
-    iterator<T> begin() { return iterator<T>(data + offset); }
-    iterator<T> end() { return iterator<T>(data + offset + this->size); }
-    iterator<T> rbegin(){ return iterator<T>(data + offset - 1); }
-    iterator<T> rend(){ return iterator<T>(data + offset + this->size - 1); }
-
-    size_t get_size() { return size; }
-    size_t get_offset() { return offset; }
-    size_t get_dim_idx() { return dim_idx; }
-
-    std::vector<size_t> get_dims() { return dims; }
+    constexpr bool operator!=(const static_dim& other) noexcept { return !(this == other); }
 
 private:
-    T* data;
-    size_t size;
-    size_t offset;
-    size_t dim_idx;
-    std::vector<size_t> dims;
+    D inner_static_dim_;
 };
 
-template <typename T> 
-class array {
-public: 
-    template <typename... Dims>
-    array(Dims... dim) : dims{static_cast<size_t>(dim)...} {
-        size = 1;
-        for(size_t dim : dims) { assert(dim > 0 && "dimension must be > 0"); size *= dim; }
-        data = new T[size]();
-    }   
-    array(const std::vector<size_t>& dims) : dims(dims) {
-        size = 1;
-        for(size_t dim : dims) { assert(dim > 0 && "dimension must be > 0"); size *= dim; }
-        data = new T[size]();
-    };
+template <typename Array, typename T, size_t N, bool Owning, bool IsConst>
+class array_base {
+public:
+    // Member types
+    using value_type = typename element_traits<T>::value_type;
+    using size_type = size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = typename element_traits<T>::reference;
+    using const_reference = typename element_traits<T>::const_reference;
+    using pointer = typename element_traits<T>::pointer;
+    using const_pointer = typename element_traits<T>::const_pointer;
 
-    ~array() { delete[] data; }
+    using base_element = typename element_traits<T>::base_element;
+    using element_dim_type = typename element_traits<T>::dim_type;
+    using container_dim_type = static_dim<element_dim_type, N>;
 
-    inner_array<T> operator[](size_t index) {
-        size_t stride = size / dims[0];
-        assert(index < dims[0]);
-        size_t offset = index * stride;
-        return inner_array<T>(data, dims, offset, stride, 1);
+    // still ndim::fixed_buffer (or any other type of ndim buffers) underneath
+    using buffer_type = add_dim_to_buffer_type<typename element_traits<T>::buffer_type, N>; 
+    
+    // Public member functions
+    constexpr size_type size() const noexcept { return N; }
+    constexpr size_type max_size() const noexcept { return N; }
+    constexpr bool empty() const noexcept { return N == 0; }
+    
+protected:
+    using underlying_store = std::conditional_t<Owning, buffer_type, 
+          std::conditional_t<IsConst, const base_element*, base_element*>>;
+
+    constexpr array_base(const element_dim_type& dims, const underlying_store& data) 
+        : dims_(dims), data_(data) {}
+    constexpr array_base(const array_base&) = delete; // no copy constructor
+    constexpr array_base& operator=(const array_base&) = delete; // no copy assignment
+                                                                 
+    /**
+     * Swaps current ndim array with another ndim array
+     */
+    constexpr void swap(array_base& other) noexcept {
+        std::swap(data_, other.data_);
+        std::swap(dims_, other.dims_);
+    }
+
+    /**
+     * Get dimension information that the current array contains
+     */
+    constexpr const element_dim_type& dim() const noexcept {
+        return dims_;
     }
     
-    array<T> operator+(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        array<T> result(dims);
-        for (int i = 0; i < size; i++) { result.data[i] = data[i] + other.data[i]; }
-        return result;
-    }
-    array<T> operator-(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        array<T> result(dims);
-        for (int i = 0; i < size; i++) { result.data[i] = data[i] - other.data[i]; }
-        return result;
-    }
-    array<T> operator*(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        array<T> result(dims);
-        for (int i = 0; i < size; i++) { result.data[i] = data[i] * other.data[i]; }
-        return result;
-    }
-    array<T> operator/(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        array<T> result(dims);
-        for (int i = 0; i < size; i++) { result.data[i] = data[i] / other.data[i]; }
-        return result;
-    }
-    array<T>& operator+=(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        for (int i = 0; i < size; i++) { data[i] += other.data[i]; }
-        return *this;
-    }
-    array<T>& operator-=(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        for (int i = 0; i < size; i++) { data[i] -= other.data[i]; }
-        return *this;
-    }
-    array<T>& operator*=(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        for (int i = 0; i < size; i++) { data[i] *= other.data[i]; }
-        return *this;
-    }
-    array<T>& operator/=(const array<T>& other) {
-        assert(dims == other.dims && "Dimensions do not match!");
-        for (int i = 0; i < size; i++) { data[i] /= other.data[i]; }
-        return *this;
-    }
+    underlying_store data_;
+    element_dim_type dims_;
+};
 
-    iterator<T> begin(){ return iterator<T>(data); }
-    iterator<T> end(){ return iterator<T>(data + size); }
-    iterator<T> rbegin(){ return iterator<T>(data - 1); }
-    iterator<T> rend(){ return iterator<T>(data + size - 1); }
-
-    size_t get_size() { return size; }
-
-    std::vector<size_t> get_dims() { return dims; } 
-
+template <typename T, size_t N>
+class array : array_base<array<T, N>, T, N, true, false> { // CRTP?
 private:
-    T* data;
-    size_t size;
-    std::vector<size_t> dims;
+    using B = array_base<array<T, N>, T, N, true, false>;
+public:
+    constexpr array(const array& other) : B(other.dims_, other.data_.clone()) {}
+
+    constexpr typename B::reference operator[](typename B::typesize index) noexcept {}
+    constexpr typename B::const_reference operator[](typename B::typesize index) const noexcept {}
+private:
+
+};
+
+template <typename T, size_t N>
+class array_ref : array_base<array_ref<T, N>, T, N, false, false> {
+public:
+private:
+};
+
+template <typename T, size_t N>
+class array_const_ref : array_base<array_const_ref<T, N>, T, N, false, true>{
+public:
+private:
 };
 
 } //namespace ndim
+
 

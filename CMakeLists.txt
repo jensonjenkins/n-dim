@@ -8,4 +8,5 @@ include_directories(src)
 
 add_executable(array_test tests/array_test.cpp)
 add_executable(iterator_test tests/iterator_test.cpp)
+add_executable(static_dim_test tests/static_dim_test.cpp)
 
