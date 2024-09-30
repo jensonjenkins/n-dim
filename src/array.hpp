@@ -10,7 +10,7 @@ namespace ndim {
  * @tparam D the dimension information of the next inner dimension
  * @tparam N size of the current dimension
  */
-template<typename D, size_t N>
+template <typename D, size_t N>
 class static_dim {
 public:
     constexpr size_t stride() const noexcept { return N * inner_static_dim_.stride(); } // recurse?
@@ -19,7 +19,6 @@ public:
     constexpr static bool is_dynamic = false;
     
     constexpr static_dim() = default;
-
     constexpr bool operator==(const static_dim& other) noexcept {
         return other.inner() == inner_static_dim_ && N == other.top_dim();
     }
@@ -29,82 +28,107 @@ private:
     D inner_static_dim_;
 };
 
+/**
+ * Array base class
+ * @tparam Array    derived class for CRTP
+ * @tparam T        element contents of derived class
+ * @tparam N        top dimension size
+ * @tparam Owning   object owns the data (false if a reference type)
+ * @tparam IsConst   
+ */
 template <typename Array, typename T, size_t N, bool Owning, bool IsConst>
 class array_base {
 public:
     // Member types
-    using value_type = typename element_traits<T>::value_type;
-    using size_type = size_t;
-    using difference_type = std::ptrdiff_t;
-    using reference = typename element_traits<T>::reference;
-    using const_reference = typename element_traits<T>::const_reference;
-    using pointer = typename element_traits<T>::pointer;
-    using const_pointer = typename element_traits<T>::const_pointer;
+    using value_type            = typename element_traits<T>::value_type;
+    using size_type             = size_t;
+    using difference_type       = std::ptrdiff_t;
+    using reference             = typename element_traits<T>::reference;
+    using const_reference       = typename element_traits<T>::const_reference;
+    using pointer               = typename element_traits<T>::pointer;
+    using const_pointer         = typename element_traits<T>::const_pointer;
 
-    using base_element = typename element_traits<T>::base_element;
-    using element_dim_type = typename element_traits<T>::dim_type;
-    using container_dim_type = static_dim<element_dim_type, N>;
-
-    // still ndim::fixed_buffer (or any other type of ndim buffers) underneath
-    using buffer_type = add_dim_to_buffer_type<typename element_traits<T>::buffer_type, N>; 
+    using base_element          = typename element_traits<T>::base_element;
+    using element_dim_type      = typename element_traits<T>::dim_type;
+    using container_dim_type    = static_dim<element_dim_type, N>;
+    
+    //still ndim::fixed_buffer or whatever buffer under the hood
+    using buffer_type           = add_dim_to_buffer_t<typename element_traits<T>::buffer_type, N>; 
     
     // Public member functions
     constexpr size_type size() const noexcept { return N; }
     constexpr size_type max_size() const noexcept { return N; }
     constexpr bool empty() const noexcept { return N == 0; }
     
-protected:
+// protected:
     using underlying_store = std::conditional_t<Owning, buffer_type, 
           std::conditional_t<IsConst, const base_element*, base_element*>>;
-
-    constexpr array_base(const element_dim_type& dims, const underlying_store& data) 
-        : dims_(dims), data_(data) {}
+    
+    constexpr array_base() = default;
+    constexpr array_base(base_element* data, const element_dim_type& dim) : data_(data), dims_(dim) {};
     constexpr array_base(const array_base&) = delete; // no copy constructor
     constexpr array_base& operator=(const array_base&) = delete; // no copy assignment
                                                                  
-    /**
-     * Swaps current ndim array with another ndim array
-     */
-    constexpr void swap(array_base& other) noexcept {
-        std::swap(data_, other.data_);
-        std::swap(dims_, other.dims_);
-    }
-
-    /**
-     * Get dimension information that the current array contains
-     */
-    constexpr const element_dim_type& dim() const noexcept {
-        return dims_;
-    }
-    
     underlying_store data_;
     element_dim_type dims_;
 };
 
 template <typename T, size_t N>
-class array : array_base<array<T, N>, T, N, true, false> { // CRTP?
+class array : public array_base<array<T, N>, T, N, true, false> {
 private:
     using B = array_base<array<T, N>, T, N, true, false>;
 public:
-    constexpr array(const array& other) : B(other.dims_, other.data_.clone()) {}
+    constexpr array() : B() {};
+   
+    constexpr typename B::underlying_store data() noexcept { return this->data_; }
 
-    constexpr typename B::reference operator[](typename B::typesize index) noexcept {}
-    constexpr typename B::const_reference operator[](typename B::typesize index) const noexcept {}
-private:
+    constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
+        return this->data_.data() + index * this->dims_.stride();
+    }
+    constexpr const typename B::base_element* data_offset(typename B::size_type index) const noexcept {
+        return this->data_.data() + index * this->dims_.stride();
+    }
 
+    constexpr typename B::reference operator[](typename B::size_type index) noexcept {
+        assert(index < N);
+        if constexpr (element_traits<T>::is_inner_container){
+            return typename B::reference(data_offset(index), this->dims_.inner());
+        } else {
+            static_assert(std::is_same_v<unit_dim, typename B::element_dim_type>, "Must be unit_dim");
+            return this->data_[index];
+        }
+    };
 };
 
 template <typename T, size_t N>
-class array_ref : array_base<array_ref<T, N>, T, N, false, false> {
-public:
+class array_ref : public array_base<array_ref<T, N>, T, N, false, false> {
 private:
+    using B = array_base<array_ref<T, N>, T, N, false, false>;
+public:
+    constexpr array_ref() : B() {};
+    constexpr array_ref(typename B::base_element* data, const typename B::element_dim_type& dim) noexcept 
+        : B(data, dim) {};
+    
+    constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
+        return this->data_.data() + index * this->dims_.stride();
+    }
+
+    constexpr typename B::reference operator[](typename B::size_type index) noexcept {
+        assert(index < N);
+        if constexpr (element_traits<T>::is_inner_container){
+            return typename B::reference(data_offset(index), this->dims_.inner());
+        } else {
+            static_assert(std::is_same_v<unit_dim, typename B::element_dim_type>, "Must be unit_dim");
+            return this->data_[index];
+        }
+    };
 };
 
 template <typename T, size_t N>
-class array_const_ref : array_base<array_const_ref<T, N>, T, N, false, true>{
-public:
-private:
-};
+class array_const_ref : public array_base<array_const_ref<T, N>, T, N, false, true> {};
+
+template <typename T, size_t N>
+class inner_array : public inner_container<array<T, N>, array_ref<T, N>, array_const_ref<T, N>> {};
 
 } //namespace ndim
 

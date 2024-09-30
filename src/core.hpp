@@ -8,24 +8,19 @@ namespace ndim {
 struct inner_container_base {};
 
 template <typename Container, typename Ref, typename ConstRef>
-struct inner_container : public inner_container_base {
+struct inner_container : inner_container_base {
     using container_type = Container;
     using container_ref_type = Ref;
     using container_const_ref_type = ConstRef;
     using container_dim_type = typename Container::container_dim_type;
 };
 
-class unit_dim {
-public:
+struct unit_dim {
     constexpr unit_dim() = default;
     constexpr static size_t stride() noexcept { return 1; }
 };
 
-/**
- * Adds dimension to buffer
- * If container is a fixed_buffer, produces a fixed buffer M times larger.
- */
-template <typename Container, size_t M>
+template <typename Buffer, size_t M>
 struct add_dim_to_buffer;
 
 template <typename T, size_t N, size_t M>
@@ -33,11 +28,9 @@ struct add_dim_to_buffer<fixed_buffer<T, N>, M> {
     using type = fixed_buffer<T, N * M>;
 };
 
-/**
- * Type alias for add_dim_to_buffer;
- */
 template <typename Buffer, size_t M>
-using add_dim_to_buffer_type = typename add_dim_to_buffer<Buffer, M>::type;
+using add_dim_to_buffer_t = typename add_dim_to_buffer<Buffer, M>::type;
+
 
 /**
  * Type traits for container (subclass of inner_container_base)
@@ -70,7 +63,6 @@ struct element_traits<T, std::enable_if_t<std::is_base_of_v<inner_container_base
 };
 
 } // namespace ndim
-
 
 
 
