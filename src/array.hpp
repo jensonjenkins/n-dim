@@ -19,24 +19,19 @@ public:
     constexpr static bool is_dynamic = false;
     
     constexpr static_dim() = default;
-    constexpr bool operator==(const static_dim& other) noexcept {
-        return other.inner() == inner_static_dim_ && N == other.top_dim();
-    }
-    constexpr bool operator!=(const static_dim& other) noexcept { return !(this == other); }
 
 private:
     D inner_static_dim_;
 };
 
 /**
- * Array base class
- * @tparam Array    derived class for CRTP
+ * n-dimensional array base class
  * @tparam T        element contents of derived class
  * @tparam N        top dimension size
  * @tparam Owning   object owns the data (false if a reference type)
  * @tparam IsConst   
  */
-template <typename Array, typename T, size_t N, bool Owning, bool IsConst>
+template <typename T, size_t N, bool Owning, bool IsConst>
 class array_base {
 public:
     // Member types
@@ -59,7 +54,7 @@ public:
     constexpr size_type size() const noexcept { return N; }
     constexpr size_type max_size() const noexcept { return N; }
     constexpr bool empty() const noexcept { return N == 0; }
-    
+ 
 protected:
     using underlying_store = std::conditional_t<Owning, buffer_type, 
           std::conditional_t<IsConst, const base_element*, base_element*>>;
@@ -74,9 +69,9 @@ protected:
 };
 
 template <typename T, size_t N>
-class array : public array_base<array<T, N>, T, N, true, false> {
+class array : public array_base<T, N, true, false> {
 private:
-    using B = array_base<array<T, N>, T, N, true, false>;
+    using B = array_base<T, N, true, false>;
 public:
     constexpr array() : B() {};
 
@@ -85,7 +80,15 @@ public:
     constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
         return this->data_.data() + index * this->dims_.stride();
     }
-
+    
+    /**
+     * Returns a reference to the inner referenced element
+     *
+     * @param index of the ndim::array
+     *
+     * @return a reference to the indexed subdimension, constructed by a call to B::reference(),
+     *     B::reference() calls the underlying inner element's constructor (i.e. ndim::array_ref).
+     */
     constexpr typename B::reference operator[](typename B::size_type index) noexcept {
         assert(index < N);
         if constexpr (element_traits<T>::is_inner_container){
@@ -95,12 +98,17 @@ public:
             return this->data_[index];
         }
     };
+    
 };
 
+/**
+ * A reference to a subdimension of the ndim::array. As it is a reference to some subdimension 
+ * in the array, it will have constant size (i.e. will not copy/create a copy of the referenced subdimension.)
+ */
 template <typename T, size_t N>
-class array_ref : public array_base<array_ref<T, N>, T, N, false, false> {
+class array_ref : public array_base<T, N, false, false> {
 private:
-    using B = array_base<array_ref<T, N>, T, N, false, false>;
+    using B = array_base<T, N, false, false>;
 public:
     constexpr array_ref() : B() {};
     constexpr array_ref(typename B::base_element* data, const typename B::element_dim_type& dim) noexcept 
@@ -122,7 +130,7 @@ public:
 };
 
 template <typename T, size_t N>
-class array_const_ref : public array_base<array_const_ref<T, N>, T, N, false, true> {};
+class array_const_ref : public array_base<T, N, false, true> {};
 
 template <typename T, size_t N>
 class inner_array : public inner_container<array_ref<T, N>, array_const_ref<T, N>> {};
