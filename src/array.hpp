@@ -40,9 +40,9 @@ template <typename Array, typename T, size_t N, bool Owning, bool IsConst>
 class array_base {
 public:
     // Member types
-    using value_type            = typename element_traits<T>::value_type;
     using size_type             = size_t;
     using difference_type       = std::ptrdiff_t;
+    using value_type            = typename element_traits<T>::value_type;
     using reference             = typename element_traits<T>::reference;
     using const_reference       = typename element_traits<T>::const_reference;
     using pointer               = typename element_traits<T>::pointer;
@@ -52,7 +52,7 @@ public:
     using element_dim_type      = typename element_traits<T>::dim_type;
     using container_dim_type    = static_dim<element_dim_type, N>;
     
-    //still ndim::fixed_buffer or whatever buffer under the hood
+    //still type of ndim::fixed_buffer or whatever buffer under the hood
     using buffer_type           = add_dim_to_buffer_t<typename element_traits<T>::buffer_type, N>; 
     
     // Public member functions
@@ -60,7 +60,7 @@ public:
     constexpr size_type max_size() const noexcept { return N; }
     constexpr bool empty() const noexcept { return N == 0; }
     
-// protected:
+protected:
     using underlying_store = std::conditional_t<Owning, buffer_type, 
           std::conditional_t<IsConst, const base_element*, base_element*>>;
     
@@ -68,7 +68,7 @@ public:
     constexpr array_base(base_element* data, const element_dim_type& dim) : data_(data), dims_(dim) {};
     constexpr array_base(const array_base&) = delete; // no copy constructor
     constexpr array_base& operator=(const array_base&) = delete; // no copy assignment
-                                                                 
+    
     underlying_store data_;
     element_dim_type dims_;
 };
@@ -79,13 +79,10 @@ private:
     using B = array_base<array<T, N>, T, N, true, false>;
 public:
     constexpr array() : B() {};
-   
+
     constexpr typename B::underlying_store data() noexcept { return this->data_; }
 
     constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
-        return this->data_.data() + index * this->dims_.stride();
-    }
-    constexpr const typename B::base_element* data_offset(typename B::size_type index) const noexcept {
         return this->data_.data() + index * this->dims_.stride();
     }
 
@@ -128,7 +125,7 @@ template <typename T, size_t N>
 class array_const_ref : public array_base<array_const_ref<T, N>, T, N, false, true> {};
 
 template <typename T, size_t N>
-class inner_array : public inner_container<array<T, N>, array_ref<T, N>, array_const_ref<T, N>> {};
+class inner_array : public inner_container<array_ref<T, N>, array_const_ref<T, N>> {};
 
 } //namespace ndim
 

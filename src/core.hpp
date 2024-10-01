@@ -7,12 +7,16 @@ namespace ndim {
 
 struct inner_container_base {};
 
-template <typename Container, typename Ref, typename ConstRef>
+/**
+ * Inner container does not actually allocate any memory (except the 1 byte for its address),
+ * its just a container that has types representing the sub-dimensions of the outermost container
+ * i.e. the a[0] from ndim::array<inner_array<int, 5>, 5> a;
+ */
+template <typename Ref, typename ConstRef>
 struct inner_container : inner_container_base {
-    using container_type = Container;
     using container_ref_type = Ref;
     using container_const_ref_type = ConstRef;
-    using container_dim_type = typename Container::container_dim_type;
+    using container_dim_type = typename Ref::container_dim_type;
 };
 
 struct unit_dim {
@@ -30,7 +34,6 @@ struct add_dim_to_buffer<fixed_buffer<T, N>, M> {
 
 template <typename Buffer, size_t M>
 using add_dim_to_buffer_t = typename add_dim_to_buffer<Buffer, M>::type;
-
 
 /**
  * Type traits for container (subclass of inner_container_base)

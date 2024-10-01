@@ -6,8 +6,20 @@ int main(int argc, char* argv[]){
     std::cout<<"Running array_test.cpp"<<std::endl;
 
     ndim::array<ndim::inner_array<int, 5>, 3> a;
-    static_assert(std::is_same_v<decltype(a.dims_.inner()), const ndim::unit_dim&>);
     
+    ndim::array<ndim::inner_array<ndim::inner_array<int, 2>, 5>, 2> a1;
+    std::cout<<"size of a1: "<<sizeof(decltype(a1))<<std::endl;
+    std::cout<<"size of a1::buffer_type: "<<sizeof(decltype(a1)::buffer_type)<<std::endl;
+    std::cout<<"size of a1::element_dim_type: "<<sizeof(decltype(a1)::element_dim_type)<<std::endl;
+    // static_dim and unit_dim appears to not have any member variables, so they 
+    // take up one byte each for memory address, i think?
+    // thats why sizeof(element_dim_type) is always 1 for ndim::arrays
+    
+    std::cout<<"size of inner_array<int, 1000>: "<<sizeof(ndim::inner_array<int, 1000>)<<std::endl;
+    // size of ndim::inner_array is also always 1 no matter the element type and N value, 
+    // it has no member variables on its own, its just a container that contains types
+
+
     static_assert(std::is_same_v<decltype(a[0]), ndim::array_ref<int, 5>>);
     static_assert(std::is_same_v<decltype(a[0])::element_dim_type, ndim::unit_dim>);
     static_assert(std::is_same_v<decltype(a[0][0]), int&>);
@@ -17,6 +29,7 @@ int main(int argc, char* argv[]){
     static_assert(std::is_same_v<decltype(a)::buffer_type, ndim::fixed_buffer<int, 15>>);
 
     assert(a[0].size() == 5);
+
     a[0][0] = 1;
     a[1][4] = 123;
     assert(a[0][0] == 1);
