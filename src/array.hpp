@@ -43,6 +43,9 @@ public:
     using pointer               = typename element_traits<T>::pointer;
     using const_pointer         = typename element_traits<T>::const_pointer;
 
+    using iterator              = typename element_traits<T>::iterator;
+    using const_iterator        = typename element_traits<T>::const_iterator;
+
     using base_element          = typename element_traits<T>::base_element;
     using element_dim_type      = typename element_traits<T>::dim_type;
     using container_dim_type    = static_dim<element_dim_type, N>;
@@ -97,8 +100,14 @@ public:
             static_assert(std::is_same_v<unit_dim, typename B::element_dim_type>, "Must be unit_dim");
             return this->data_[index];
         }
-    };
+    }
     
+    constexpr typename B::reference front() noexcept {}
+    constexpr typename B::reference back() noexcept {}
+
+    constexpr typename B::iterator begin() noexcept {}
+    constexpr typename B::iterator end() noexcept {}
+
 };
 
 /**
@@ -126,7 +135,7 @@ public:
             static_assert(std::is_same_v<unit_dim, typename B::element_dim_type>, "Must be unit_dim");
             return this->data_[index];
         }
-    };
+    }
 };
 
 template <typename T, size_t N>

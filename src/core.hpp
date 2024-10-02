@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include "fixed_buffer.hpp"
+#include "iterator.hpp"
 
 namespace ndim {
 
@@ -36,6 +37,20 @@ template <typename Buffer, size_t M>
 using add_dim_to_buffer_t = typename add_dim_to_buffer<Buffer, M>::type;
 
 /**
+ * Template specialization of iterator_impl for a primitive type T
+ */
+template <typename T, bool IsConst, typename = void>
+class iterator_impl : public iterator_lowest_impl<T, IsConst> {};
+
+/**
+ * Template specialization of iterator_impl for a non primitive type T, 
+ * i.e. ndim::array_ref
+ */
+template <typename T, bool IsConst>
+class iterator_impl <T, IsConst, std::enable_if_t<std::is_base_of_v<inner_container_base, T>>> 
+    : public iterator_intermediate_impl<T, IsConst> {};
+
+/**
  * Type traits for container (subclass of inner_container_base)
  * or non-container (i.e. int, float, etc.)
  */
@@ -46,9 +61,14 @@ struct element_traits {
     using const_reference = const T&;
     using pointer = T*;
     using const_pointer = const T*;
+    
+    using iterator = iterator_impl<T, false>;
+    using const_iterator = iterator_impl<T, true>;
+
     using dim_type = unit_dim;
     using base_element = value_type;
     using buffer_type = fixed_buffer<T, 1>;
+
     constexpr static bool is_inner_container = false;
 };
 
@@ -59,9 +79,14 @@ struct element_traits<T, std::enable_if_t<std::is_base_of_v<inner_container_base
     using const_reference = typename T::container_const_ref_type;
     using pointer = void;
     using const_pointer = void;
+
+    using iterator = iterator_impl<T, false>;
+    using const_iterator = iterator_impl<T, true>;
+
     using dim_type = typename T::container_dim_type;
     using base_element = typename reference::base_element;
     using buffer_type = typename reference::buffer_type;
+
     constexpr static bool is_inner_container = true;
 };
 
