@@ -2,6 +2,8 @@
 
 #include <type_traits>
 #include "core.hpp"
+#include "fixed_buffer.hpp"
+#include "iterator.hpp"
 
 namespace ndim {
 
@@ -43,8 +45,8 @@ public:
     using pointer               = typename element_traits<T>::pointer;
     using const_pointer         = typename element_traits<T>::const_pointer;
 
-    using iterator              = typename element_traits<T>::iterator;
-    using const_iterator        = typename element_traits<T>::const_iterator;
+    using iterator              = iterator<T>;
+    using const_iterator        = const_iterator<T>;
 
     using base_element          = typename element_traits<T>::base_element;
     using element_dim_type      = typename element_traits<T>::dim_type;
@@ -105,8 +107,16 @@ public:
     constexpr typename B::reference front() noexcept {}
     constexpr typename B::reference back() noexcept {}
 
-    constexpr typename B::iterator begin() noexcept {}
-    constexpr typename B::iterator end() noexcept {}
+    constexpr typename B::iterator begin() noexcept { 
+        // static_assert(std::is_same_v<iterator_lowest_impl<T, false>, decltype(typename B::iterator())>);
+        // static_assert(std::is_same_v<typename B::base_element*, decltype(this->data_.data())>);
+        return typename B::iterator(this->data_.data(), this->dims_); 
+    }
+    constexpr typename B::iterator end() noexcept {
+        return B::iterator(this->data_.data() + N, this->dims_); 
+    }
+    constexpr typename B::const_iterator cbegin() noexcept {}
+    constexpr typename B::const_iterator cend() noexcept {}
 
 };
 
@@ -126,6 +136,12 @@ public:
     constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
         return this->data_.data() + index * this->dims_.stride();
     }
+    
+    /**
+     * Shifts the current pointer n objects away. 
+     * n objects away meaning maintaining the same dimension as the originally pointed object.
+     */
+    constexpr void shift(typename B::size_type n) noexcept { this->data_ + n * this->dims_.stride(); }
 
     constexpr typename B::reference operator[](typename B::size_type index) noexcept {
         assert(index < N);
