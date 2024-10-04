@@ -20,6 +20,11 @@ public:
     constexpr static bool is_dynamic = false;
     
     constexpr static_dim() = default;
+    
+    constexpr bool operator==(const static_dim& other) const noexcept {
+        return N == other.top_dim() && inner() == other.inner();
+    }
+    constexpr bool operator!=(const static_dim& other) const noexcept { return !(*this == other); }
 
 private:
     D inner_static_dim_;
@@ -58,6 +63,13 @@ public:
     constexpr size_type size() const noexcept { return N; }
     constexpr size_type max_size() const noexcept { return N; }
     constexpr bool empty() const noexcept { return N == 0; }
+
+    constexpr const element_dim_type dims() const noexcept { return this->dims_; }
+
+    constexpr bool operator==(const array_base& other) const noexcept {
+        return this->dims_ == other.dims_ && this->data_ == other.data_;
+    }
+    constexpr bool operator!=(const array_base& other) const noexcept { return !(*this == other); }
  
 protected:
     using underlying_store = std::conditional_t<Owning, buffer_type, 
@@ -136,6 +148,7 @@ public:
     constexpr typename B::const_reference front() const noexcept { return operator[](0); }
     constexpr typename B::reference back() noexcept { return operator[](N - 1); }
     constexpr typename B::const_reference back() const noexcept { return operator[](N - 1); }
+
 };
 
 /**
@@ -148,18 +161,33 @@ private:
     using B = array_base<T, N, false, false>;
 public:
     constexpr array_ref() : B() {};
+    constexpr array_ref(const array_ref& other) noexcept {
+        this->dims_ = other.dims_;
+        this->data_ = other.data_;
+    }
     constexpr array_ref(typename B::base_element* data, const typename B::element_dim_type& dim) noexcept 
         : B(data, dim) {};
     
     constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
         return this->data_.data() + index * this->dims_.stride();
     }
-    
+    constexpr const typename B::base_element* data_offset(typename B::size_type index) const noexcept {
+        return this->data_.data() + index * this->dims_.stride();
+    }
+
     /**
      * Shifts the current pointer n objects away. 
      * n objects away meaning maintaining the same dimension as the originally pointed object.
      */
-    constexpr void shift(typename B::size_type n) noexcept { this->data_ + n * this->dims_.stride(); }
+    constexpr void shift(typename B::size_type n) noexcept { this->data_ += n * this->dims_.stride(); }
+
+    /**
+     * Copies another array_ref object onto the current object
+     */
+    constexpr void copy(const array_ref& other) {
+        this->data_ = other.data_;
+        this->dims_ = other.dims_;
+    }
 
     constexpr typename B::reference operator[](typename B::size_type index) noexcept {
         assert(index < N);
@@ -179,6 +207,20 @@ public:
             return this->data_[index];
         }
     }
+
+    constexpr typename B::const_iterator begin() const noexcept {
+        return typename B::const_iterator(this->data_, this->dims_);
+    }
+    constexpr typename B::const_iterator end() const noexcept {
+        return typename B::const_iterator(this->data_ + N, this->dims_);
+    }
+    constexpr typename B::const_iterator cbegin() const noexcept {
+        return typename B::const_iterator(this->data_, this->dims_);
+    }
+    constexpr typename B::const_iterator cend() const noexcept {
+        return typename B::const_iterator(this->data_ + N, this->dims_);
+    }
+
 };
 
 template <typename T, size_t N>

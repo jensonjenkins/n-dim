@@ -22,6 +22,9 @@ struct inner_container : inner_container_base {
 struct unit_dim {
     constexpr unit_dim() = default;
     constexpr static size_t stride() noexcept { return 1; }
+
+    constexpr bool operator==(const unit_dim& other) const noexcept { return true; }
+    constexpr bool operator!=(const unit_dim& other) const noexcept { return !(*this == other); }
 };
 
 template <typename Buffer, size_t M>

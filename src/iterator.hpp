@@ -36,40 +36,46 @@ class iterator_intermediate_impl : public iterator_base_impl<T, IsConst> {
 private:     
     using B = iterator_base_impl<T, IsConst>;
 public:
-    constexpr typename B::reference operator*() const noexcept { return *ptr_; }
-    constexpr typename B::pointer operator->() noexcept { return ptr_; }
+    constexpr typename B::reference operator*() const noexcept { return *ref_; }
+    constexpr const typename B::reference* operator->() noexcept { return &ref_; }
 
-    constexpr iterator_intermediate_impl(typename B::base_element* data, 
-            const typename B::element_dim_type& dim) noexcept : ptr_(data, dim) {}
     constexpr iterator_intermediate_impl() noexcept = default;
+    constexpr iterator_intermediate_impl(const iterator_intermediate_impl& other) noexcept 
+        : ref_(other.ref_) {}
+    constexpr iterator_intermediate_impl(typename B::base_element* data, 
+            const typename B::element_dim_type& dim) noexcept : ref_(data, dim.inner()) {}
 
-    constexpr iterator_intermediate_impl& operator++() noexcept { ptr_.shift(1); return *this; }
-    constexpr iterator_intermediate_impl operator++(int) noexcept { 
-        auto tmp = *this; ++this; return tmp;
+    constexpr iterator_intermediate_impl& operator=(const iterator_intermediate_impl& other) noexcept {
+        assert(ref_.dims() == other.ref_.dims());
+        ref_.copy(other.ref_);
     }
-    constexpr iterator_intermediate_impl& operator--() noexcept { ptr_.shift(-1); return *this; }
+    constexpr iterator_intermediate_impl& operator++() noexcept { ref_.shift(1); return *this; }
+    constexpr iterator_intermediate_impl operator++(int) noexcept { 
+        auto tmp = *this; ++(*this); return tmp;
+    }
+    constexpr iterator_intermediate_impl& operator--() noexcept { ref_.shift(-1); return *this; }
     constexpr iterator_intermediate_impl operator--(int) noexcept { 
-        auto tmp = *this; --this; return tmp;
+        auto tmp = *this; --(*this); return tmp;
     }
     constexpr iterator_intermediate_impl& operator+=(typename B::difference_type n) noexcept { 
-        ptr_.shift(n); return *this; 
+        ref_.shift(n); return *this; 
     }
     constexpr iterator_intermediate_impl operator+(typename B::difference_type n) const noexcept {
         auto tmp = *this; return tmp += n;
     }
     constexpr iterator_intermediate_impl& operator-=(typename B::difference_type n) noexcept { 
-        ptr_.shift(-n); return *this; 
+        ref_.shift(-n); return *this; 
     }
     constexpr iterator_intermediate_impl operator-(typename B::difference_type n) const noexcept {
         auto tmp = *this; return tmp -= n;
     }
 
-    constexpr bool operator==(const iterator_intermediate_impl& other) const { return ptr_ == other.ptr_; }
-    constexpr bool operator!=(const iterator_intermediate_impl& other) const { return ptr_ != other.ptr_; }
+    constexpr bool operator==(const iterator_intermediate_impl& other) const { return ref_ == other.ref_; }
+    constexpr bool operator!=(const iterator_intermediate_impl& other) const { return ref_ != other.ref_; }
     
-private:
+// private:
     static_assert(std::is_base_of_v<inner_container_base, T>);
-    typename B::reference ptr_; // reference meaning reference to element T i.e. ndim::array_ref 
+    typename B::reference ref_; // reference meaning reference to element T i.e. ndim::array_ref 
                                 // which in reality is a wrapper for B::base_element* which
                                 // is basically a pointer.
 };
