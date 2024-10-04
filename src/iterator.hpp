@@ -16,10 +16,14 @@ class iterator_base_impl {
 public:
     using difference_type   = std::ptrdiff_t;
     using iterator_category = std::random_access_iterator_tag; //ideally contiguous_iterator_tag
-    using value_type        = typename element_traits<T>::value_type;
-    using pointer           = typename element_traits<T>::pointer;
-    using reference         = typename element_traits<T>::reference;
-    using base_element      = typename element_traits<T>::base_element;
+    using value_type        = std::conditional_t<IsConst, 
+          const typename element_traits<T>::value_type, typename element_traits<T>::value_type>;
+    using pointer           = std::conditional_t<IsConst,
+          typename element_traits<T>::const_pointer, typename element_traits<T>::pointer>;
+    using reference         = std::conditional_t<IsConst, 
+          typename element_traits<T>::const_reference, typename element_traits<T>::reference>;
+    using base_element      = std::conditional_t<IsConst, 
+          const typename element_traits<T>::base_element, typename element_traits<T>::base_element>;
     using element_dim_type  = typename element_traits<T>::dim_type;
 };
 

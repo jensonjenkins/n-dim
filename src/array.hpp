@@ -2,7 +2,6 @@
 
 #include <type_traits>
 #include "core.hpp"
-#include "fixed_buffer.hpp"
 #include "iterator.hpp"
 
 namespace ndim {
@@ -45,8 +44,8 @@ public:
     using pointer               = typename element_traits<T>::pointer;
     using const_pointer         = typename element_traits<T>::const_pointer;
 
-    using iterator              = iterator<T>;
-    using const_iterator        = const_iterator<T>;
+    using iterator              = ndim::iterator<T>;
+    using const_iterator        = ndim::const_iterator<T>;
 
     using base_element          = typename element_traits<T>::base_element;
     using element_dim_type      = typename element_traits<T>::dim_type;
@@ -81,6 +80,7 @@ public:
     constexpr array() : B() {};
 
     constexpr typename B::underlying_store data() noexcept { return this->data_; }
+    constexpr const typename B::underlying_store data() const noexcept { return this->data_; }
 
     constexpr typename B::base_element* data_offset(typename B::size_type index) noexcept {
         return this->data_.data() + index * this->dims_.stride();
@@ -103,21 +103,39 @@ public:
             return this->data_[index];
         }
     }
+    constexpr const typename B::reference operator[](typename B::size_type index) const noexcept {
+        assert(index < N);
+        if constexpr (element_traits<T>::is_inner_container){
+            return typename B::reference(data_offset(index), this->dims_.inner());
+        } else {
+            static_assert(std::is_same_v<unit_dim, typename B::element_dim_type>, "Must be unit_dim");
+            return this->data_[index];
+        }
+    }
     
-    constexpr typename B::reference front() noexcept {}
-    constexpr typename B::reference back() noexcept {}
-
     constexpr typename B::iterator begin() noexcept { 
-        // static_assert(std::is_same_v<iterator_lowest_impl<T, false>, decltype(typename B::iterator())>);
-        // static_assert(std::is_same_v<typename B::base_element*, decltype(this->data_.data())>);
         return typename B::iterator(this->data_.data(), this->dims_); 
     }
     constexpr typename B::iterator end() noexcept {
-        return B::iterator(this->data_.data() + N, this->dims_); 
+        return typename B::iterator(this->data_.data() + N, this->dims_); 
     }
-    constexpr typename B::const_iterator cbegin() noexcept {}
-    constexpr typename B::const_iterator cend() noexcept {}
+    constexpr typename B::const_iterator begin() const noexcept {
+        return typename B::const_iterator(this->data_.data(), this->dims_);
+    }
+    constexpr typename B::const_iterator end() const noexcept {
+        return typename B::const_iterator(this->data_.data() + N, this->dims_);
+    }
+    constexpr typename B::const_iterator cbegin() const noexcept {
+        return typename B::const_iterator(this->data_.data(), this->dims_);
+    }
+    constexpr typename B::const_iterator cend() const noexcept {
+        return typename B::const_iterator(this->data_.data() + N, this->dims_);
+    }
 
+    constexpr typename B::reference front() noexcept { return operator[](0); }
+    constexpr typename B::const_reference front() const noexcept { return operator[](0); }
+    constexpr typename B::reference back() noexcept { return operator[](N - 1); }
+    constexpr typename B::const_reference back() const noexcept { return operator[](N - 1); }
 };
 
 /**
@@ -144,6 +162,15 @@ public:
     constexpr void shift(typename B::size_type n) noexcept { this->data_ + n * this->dims_.stride(); }
 
     constexpr typename B::reference operator[](typename B::size_type index) noexcept {
+        assert(index < N);
+        if constexpr (element_traits<T>::is_inner_container){
+            return typename B::reference(data_offset(index), this->dims_.inner());
+        } else {
+            static_assert(std::is_same_v<unit_dim, typename B::element_dim_type>, "Must be unit_dim");
+            return this->data_[index];
+        }
+    }
+    constexpr const typename B::reference operator[](typename B::size_type index) const noexcept {
         assert(index < N);
         if constexpr (element_traits<T>::is_inner_container){
             return typename B::reference(data_offset(index), this->dims_.inner());
