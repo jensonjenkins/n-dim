@@ -70,6 +70,10 @@ public:
         return this->dims_ == other.dims_ && this->data_ == other.data_;
     }
     constexpr bool operator!=(const array_base& other) const noexcept { return !(*this == other); }
+    constexpr bool operator<(const array_base& other) { return data_ < other.data_; }
+    constexpr bool operator>(const array_base& other) { return data_ > other.data_; }
+    constexpr bool operator<=(const array_base& other) { return data_ <= other.data_; }
+    constexpr bool operator>=(const array_base& other) { return data_ >= other.data_; }
  
 protected:
     using underlying_store = std::conditional_t<Owning, buffer_type, 
@@ -126,22 +130,22 @@ public:
     }
     
     constexpr typename B::iterator begin() noexcept { 
-        return typename B::iterator(this->data_.data(), this->dims_); 
+        return typename B::iterator(this->data_.data(), this->dims_, 0); 
     }
     constexpr typename B::iterator end() noexcept {
-        return typename B::iterator(this->data_.data() + N, this->dims_); 
+        return typename B::iterator(this->data_.data() + N, this->dims_, N); 
     }
     constexpr typename B::const_iterator begin() const noexcept {
-        return typename B::const_iterator(this->data_.data(), this->dims_);
+        return typename B::const_iterator(this->data_.data(), this->dims_, 0);
     }
     constexpr typename B::const_iterator end() const noexcept {
-        return typename B::const_iterator(this->data_.data() + N, this->dims_);
+        return typename B::const_iterator(this->data_.data() + N, this->dims_, N);
     }
     constexpr typename B::const_iterator cbegin() const noexcept {
-        return typename B::const_iterator(this->data_.data(), this->dims_);
+        return typename B::const_iterator(this->data_.data(), this->dims_, 0);
     }
     constexpr typename B::const_iterator cend() const noexcept {
-        return typename B::const_iterator(this->data_.data() + N, this->dims_);
+        return typename B::const_iterator(this->data_.data() + N, this->dims_, N);
     }
 
     constexpr typename B::reference front() noexcept { return operator[](0); }
@@ -179,7 +183,7 @@ public:
      * Shifts the current pointer n objects away. 
      * n objects away meaning maintaining the same dimension as the originally pointed object.
      */
-    constexpr void shift(typename B::size_type n) noexcept { this->data_ += n * this->dims_.stride(); }
+    constexpr void shift(typename B::size_type n) noexcept { this->data_ += n * N * this->dims_.stride(); }
 
     /**
      * Copies another array_ref object onto the current object
@@ -207,18 +211,23 @@ public:
             return this->data_[index];
         }
     }
-
+    constexpr typename B::iterator begin() noexcept {
+        return typename B::iterator(this->data_, this->dims_, 0);
+    }
+    constexpr typename B::iterator end() noexcept {
+        return typename B::iterator(this->data_ + N, this->dims_, N);
+    }
     constexpr typename B::const_iterator begin() const noexcept {
-        return typename B::const_iterator(this->data_, this->dims_);
+        return typename B::const_iterator(this->data_, this->dims_, 0);
     }
     constexpr typename B::const_iterator end() const noexcept {
-        return typename B::const_iterator(this->data_ + N, this->dims_);
+        return typename B::const_iterator(this->data_ + N, this->dims_, N);
     }
     constexpr typename B::const_iterator cbegin() const noexcept {
-        return typename B::const_iterator(this->data_, this->dims_);
+        return typename B::const_iterator(this->data_, this->dims_, 0);
     }
     constexpr typename B::const_iterator cend() const noexcept {
-        return typename B::const_iterator(this->data_ + N, this->dims_);
+        return typename B::const_iterator(this->data_ + N, this->dims_, N);
     }
 
 };

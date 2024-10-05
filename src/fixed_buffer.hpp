@@ -16,9 +16,9 @@ public:
     constexpr fixed_buffer() = default;
     constexpr fixed_buffer(const std::array<T, N>& buf) noexcept : buf_(buf) {};
     
-    constexpr fixed_buffer(const fixed_buffer& other) noexcept = delete; //copy 
+    constexpr fixed_buffer(const fixed_buffer& other) noexcept = default; //copy 
     constexpr fixed_buffer(fixed_buffer&& other) noexcept = default; // move
-    constexpr fixed_buffer& operator=(const fixed_buffer& other) noexcept = delete; //copy assignment 
+    constexpr fixed_buffer& operator=(const fixed_buffer& other) noexcept = default; //copy assignment 
     constexpr fixed_buffer& operator=(fixed_buffer&& other) noexcept = default; //move assignment
 
     constexpr T& operator[](size_t index) noexcept { return buf_[index]; }
